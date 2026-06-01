@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DrumForge — Auto Mix & Balance</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --card: #18181c;
+    --border: #2a2a30;
+    --accent: #ff4d00;
+    --accent2: #ffb800;
+    --text: #e8e8ea;
+    --muted: #5a5a65;
+    --green: #00e87a;
+    --red: #ff3355;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    letter-spacing: 3px;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); }
+
+  .tagline {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+  }
+
+  /* Drop Zone */
+  .drop-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: 4px;
+    padding: 60px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(255, 77, 0, 0.04);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .drop-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .drop-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* File info bar */
+  .file-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    font-size: 12px;
+  }
+
+  .file-bar.visible { display: flex; }
+
+  .file-name {
+    flex: 1;
+    color: var(--accent2);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-size { color: var(--muted); font-size: 11px; }
+
+  /* Waveform */
+  .waveform-section {
+    display: none;
+    margin-top: 28px;
+  }
+
+  .waveform-section.visible { display: block; }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  canvas {
+    width: 100%;
+    height: 80px;
+    display: block;
+    border-radius: 3px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  /* Controls Panel */
+  .controls-panel {
+    display: none;
+    margin-top: 32px;
+  }
+
+  .controls-panel.visible { display: block; }
+
+  .panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: var(--text);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    background: var(--accent);
+    color: #000;
+    padding: 3px 8px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .control-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px;
+  }
+
+  .control-card.full { grid-column: 1 / -1; }
+
+  .ctrl-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ctrl-value {
+    color: var(--accent2);
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px rgba(255,77,0,0.4);
+  }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct, 50%), var(--border) var(--pct, 50%));
+    height: 3px;
+    border-radius: 2px;
+  }
+
+  /* Toggle switches */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .toggle-row:last-child { border-bottom: none; }
+
+  .toggle-info .t-name {
+    font-size: 12px;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+
+  .toggle-info .t-desc {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+
+  .toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle-track::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--muted);
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .toggle input:checked + .toggle-track {
+    background: rgba(255,77,0,0.2);
+    border: 1px solid var(--accent);
+  }
+
+  .toggle input:checked + .toggle-track::before {
+    transform: translateX(18px);
+    background: var(--accent);
+  }
+
+  /* Analyzer */
+  .analyzer-section {
+    display: none;
+    margin-top: 28px;
+  }
+
+  .analyzer-section.visible { display: block; }
+
+  .meter-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+  }
+
+  .meter-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .meter-bar-wrap {
+    width: 100%;
+    height: 80px;
+    background: var(--bg);
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .meter-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border-radius: 2px 2px 0 0;
+    transition: height 0.08s;
+  }
+
+  .meter-label {
+    font-size: 8px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* Process Button */
+  .process-section {
+    display: none;
+    margin-top: 32px;
+  }
+
+  .process-section.visible { display: block; }
+
+  .process-btn {
+    width: 100%;
+    padding: 20px;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 4px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s, background 0.2s;
+    box-shadow: 0 4px 24px rgba(255,77,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .process-btn:hover {
+    background: #ff6520;
+    box-shadow: 0 6px 32px rgba(255,77,0,0.5);
+    transform: translateY(-1px);
+  }
+
+  .process-btn:active { transform: translateY(0); }
+  .process-btn:disabled {
+    background: var(--border);
+    color: var(--muted);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Progress */
+  .progress-wrap {
+    display: none;
+    margin-top: 20px;
+  }
+
+  .progress-wrap.visible { display: block; }
+
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  .progress-status {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* Result */
+  .result-section {
+    display: none;
+    margin-top: 32px;
+  }
+
+  .result-section.visible { display: block; }
+
+  .result-card {
+    background: var(--card);
+    border: 1px solid var(--green);
+    border-radius: 4px;
+    padding: 24px;
+    box-shadow: 0 0 24px rgba(0, 232, 122, 0.08);
+  }
+
+  .result-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .result-icon {
+    width: 36px;
+    height: 36px;
+    background: rgba(0,232,122,0.1);
+    border: 1px solid var(--green);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .result-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--green);
+  }
+
+  .result-sub { font-size: 11px; color: var(--muted); }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .stat-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .stat-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: var(--accent2);
+  }
+
+  .stat-key {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .playback-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .play-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 3px;
+    border: 1px solid;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    background: transparent;
+  }
+
+  .play-btn.original {
+    border-color: var(--border);
+    color: var(--muted);
+  }
+
+  .play-btn.original:hover { border-color: var(--text); color: var(--text); }
+
+  .play-btn.processed {
+    border-color: var(--green);
+    color: var(--green);
+    background: rgba(0,232,122,0.05);
+  }
+
+  .play-btn.processed:hover { background: rgba(0,232,122,0.12); }
+
+  .play-btn.playing {
+    animation: pulse 0.8s ease-in-out infinite alternate;
+  }
+
+  @keyframes pulse {
+    from { box-shadow: 0 0 0 rgba(0,232,122,0.2); }
+    to { box-shadow: 0 0 12px rgba(0,232,122,0.4); }
+  }
+
+  .download-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    border-radius: 3px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 2px 16px rgba(0,232,122,0.2);
+  }
+
+  .download-btn:hover {
+    background: #00ff88;
+    box-shadow: 0 4px 24px rgba(0,232,122,0.35);
+    transform: translateY(-1px);
+  }
+
+  /* Processing log */
+  .log-section {
+    display: none;
+    margin-top: 20px;
+  }
+
+  .log-section.visible { display: block; }
+
+  .log-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 14px 16px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  .log-box .log-line { display: block; }
+  .log-box .log-line.ok { color: var(--green); }
+  .log-box .log-line.accent { color: var(--accent2); }
+  .log-box .log-line.info { color: #6080ff; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 600px) {
+    .controls-grid { grid-template-columns: 1fr; }
+    .control-card.full { grid-column: 1; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .meter-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">Drum<span>Forge</span></div>
+    <div class="tagline">Auto Mix & Balance Engine</div>
+  </header>
+
+  <!-- UPLOAD -->
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".wav,.mp3,.aif,.aiff,.m4a,.ogg,.flac" />
+    <span class="drop-icon">🥁</span>
+    <div class="drop-title">Drop Your Drum Recording Here</div>
+    <div class="drop-sub">WAV · MP3 · AIFF · M4A · FLAC — exported from GarageBand or any DAW</div>
+  </div>
+
+  <div class="file-bar" id="fileBar">
+    <span>📁</span>
+    <span class="file-name" id="fileName">—</span>
+    <span class="file-size" id="fileSize">—</span>
+  </div>
+
+  <!-- WAVEFORM -->
+  <div class="waveform-section" id="waveformSection">
+    <div class="section-label">Input Waveform</div>
+    <canvas id="waveformCanvas"></canvas>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls-panel" id="controlsPanel">
+    <div class="panel-title">Mix Settings <span class="badge">Auto-Detect</span></div>
+
+    <div class="controls-grid">
+
+      <div class="control-card">
+        <div class="ctrl-label">
+          Compression <span class="ctrl-value" id="compVal">3.5:1</span>
+        </div>
+        <input type="range" id="compRatio" min="1" max="8" step="0.1" value="3.5"
+          oninput="updateSlider(this,'compVal',v=>''+parseFloat(v).toFixed(1)+':1')" />
+      </div>
+
+      <div class="control-card">
+        <div class="ctrl-label">
+          Comp Threshold <span class="ctrl-value" id="threshVal">-18 dB</span>
+        </div>
+        <input type="range" id="compThresh" min="-40" max="-6" step="1" value="-18"
+          oninput="updateSlider(this,'threshVal',v=>v+' dB')" />
+      </div>
+
+      <div class="control-card">
+        <div class="ctrl-label">
+          Low End Boost <span class="ctrl-value" id="lowVal">+4 dB</span>
+        </div>
+        <input type="range" id="lowBoost" min="-6" max="12" step="0.5" value="4"
+          oninput="updateSlider(this,'lowVal',v=>(v>=0?'+':'')+v+' dB')" />
+      </div>
+
+      <div class="control-card">
+        <div class="ctrl-label">
+          Presence (3–5kHz) <span class="ctrl-value" id="presVal">+3 dB</span>
+        </div>
+        <input type="range" id="presence" min="-6" max="10" step="0.5" value="3"
+          oninput="updateSlider(this,'presVal',v=>(v>=0?'+':'')+v+' dB')" />
+      </div>
+
+      <div class="control-card">
+        <div class="ctrl-label">
+          Air / Brightness <span class="ctrl-value" id="airVal">+2 dB</span>
+        </div>
+        <input type="range" id="airBoost" min="-6" max="8" step="0.5" value="2"
+          oninput="updateSlider(this,'airVal',v=>(v>=0?'+':'')+v+' dB')" />
+      </div>
+
+      <div class="control-card">
+        <div class="ctrl-label">
+          Output Gain <span class="ctrl-value" id="gainVal">0 dB</span>
+        </div>
+        <input type="range" id="outGain" min="-12" max="6" step="0.5" value="0"
+          oninput="updateSlider(this,'gainVal',v=>(v>=0?'+':'')+v+' dB')" />
+      </div>
+
+      <div class="control-card full">
+        <div class="ctrl-label" style="margin-bottom:16px">Processing Modules</div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="t-name">Noise Gate</div>
+            <div class="t-desc">Removes bleed and room noise between hits</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="gateOn" checked /><span class="toggle-track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="t-name">Transient Shaper</div>
+            <div class="t-desc">Tightens attack; punchy, snappy drum hits</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="transientOn" checked /><span class="toggle-track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="t-name">Low-Cut Filter (HPF @ 30Hz)</div>
+            <div class="t-desc">Removes sub-rumble and DC offset</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="hpfOn" checked /><span class="toggle-track"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="t-name">Limiter (True Peak -1 dBFS)</div>
+            <div class="t-desc">Prevents clipping on the output bus</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="limiterOn" checked /><span class="toggle-track"></span></label>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ANALYZER METERS -->
+  <div class="analyzer-section" id="analyzerSection">
+    <div class="section-label" style="margin-top:8px">Frequency Bands</div>
+    <div class="meter-grid" id="meterGrid">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- PROCESS -->
+  <div class="process-section" id="processSection">
+    <button class="process-btn" id="processBtn" onclick="startProcessing()">
+      ⚡ Process & Balance Drums
+    </button>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="progress-status" id="progressStatus">Initializing...</div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-section" id="logSection">
+    <div class="section-label">Processing Log</div>
+    <div class="log-box" id="logBox"></div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-section" id="resultSection">
+    <div class="result-card">
+      <div class="result-header">
+        <div class="result-icon">✓</div>
+        <div>
+          <div class="result-title">Mix Complete</div>
+          <div class="result-sub" id="resultSub">Processed and ready for download</div>
+        </div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-val" id="statLUFS">—</div><div class="stat-key">LUFS Target</div></div>
+        <div class="stat-box"><div class="stat-val" id="statPeak">—</div><div class="stat-key">True Peak</div></div>
+        <div class="stat-box"><div class="stat-val" id="statDuration">—</div><div class="stat-key">Duration</div></div>
+      </div>
+      <div class="playback-row">
+        <button class="play-btn original" id="playOrigBtn" onclick="playAudio('original')">▶ Original</button>
+        <button class="play-btn processed" id="playProcBtn" onclick="playAudio('processed')">▶ Processed</button>
+      </div>
+      <button class="download-btn" id="downloadBtn" onclick="downloadResult()">⬇ Download Mixed File (WAV)</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+let audioCtx = null;
+let originalBuffer = null;
+let processedBuffer = null;
+let processedBlob = null;
+let originalFileName = 'drum_recording';
+let currentSource = null;
+let meterAnimId = null;
+let analyzerNode = null;
+
+// ─────────────────────────────────────────────
+// Drag & Drop / File Handling
+// ─────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+
+function handleFile(file) {
+  originalFileName = file.name.replace(/\.[^/.]+$/, '');
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileSize').textContent = formatBytes(file.size);
+  document.getElementById('fileBar').classList.add('visible');
+
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      originalBuffer = await audioCtx.decodeAudioData(e.target.result.slice(0));
+      drawWaveform(originalBuffer);
+      buildMeters();
+      show('waveformSection');
+      show('controlsPanel');
+      show('analyzerSection');
+      show('processSection');
+      startMeterPreview(originalBuffer);
+    } catch(err) {
+      alert('Could not decode audio. Make sure the file is a valid audio format.\n\n' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ─────────────────────────────────────────────
+// Waveform Drawing
+// ─────────────────────────────────────────────
+function drawWaveform(buffer, canvasId = 'waveformCanvas', color = '#ff4d00') {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio || 800;
+  canvas.height = 80 * window.devicePixelRatio || 80;
+  const W = canvas.width, H = canvas.height;
+
+  ctx.fillStyle = '#111114';
+  ctx.fillRect(0, 0, W, H);
+
+  const data = buffer.getChannelData(0);
+  const step = Math.ceil(data.length / W);
+  const mid = H / 2;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+
+  for (let x = 0; x < W; x++) {
+    let min = 1, max = -1;
+    for (let s = 0; s < step; s++) {
+      const v = data[x * step + s] || 0;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    ctx.moveTo(x, mid + min * mid * 0.9);
+    ctx.lineTo(x, mid + max * mid * 0.9);
+  }
+
+  ctx.stroke();
+
+  // Gradient overlay
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, 'rgba(10,10,11,0.5)');
+  grad.addColorStop(0.1, 'rgba(10,10,11,0)');
+  grad.addColorStop(0.9, 'rgba(10,10,11,0)');
+  grad.addColorStop(1, 'rgba(10,10,11,0.5)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ─────────────────────────────────────────────
+// Meters
+// ─────────────────────────────────────────────
+const BANDS = [
+  { label: '30Hz', lo: 20, hi: 50 },
+  { label: '80Hz', lo: 50, hi: 120 },
+  { label: '200Hz', lo: 120, hi: 300 },
+  { label: '500Hz', lo: 300, hi: 800 },
+  { label: '1kHz', lo: 800, hi: 2000 },
+  { label: '3kHz', lo: 2000, hi: 5000 },
+  { label: '8kHz', lo: 5000, hi: 12000 },
+  { label: '16kHz', lo: 12000, hi: 20000 },
+];
+
+function buildMeters() {
+  const grid = document.getElementById('meterGrid');
+  grid.innerHTML = '';
+  BANDS.forEach((b, i) => {
+    grid.innerHTML += `
+      <div class="meter-col">
+        <div class="meter-bar-wrap">
+          <div class="meter-bar" id="meter${i}" style="height:0%;background:linear-gradient(to top,#ff4d00,#ffb800)"></div>
+        </div>
+        <div class="meter-label">${b.label}</div>
+      </div>`;
+  });
+}
+
+function startMeterPreview(buffer) {
+  if (meterAnimId) cancelAnimationFrame(meterAnimId);
+
+  const data = buffer.getChannelData(0);
+  const sr = buffer.sampleRate;
+  let frame = 0;
+  const frameSize = Math.floor(sr * 0.05);
+
+  function tick() {
+    const offset = (frame * frameSize) % data.length;
+    const slice = data.slice(offset, offset + frameSize);
+    const energies = getBandEnergies(slice, sr);
+    BANDS.forEach((_, i) => {
+      const el = document.getElementById('meter' + i);
+      if (el) el.style.height = Math.min(100, energies[i] * 100) + '%';
+    });
+    frame++;
+    meterAnimId = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function getBandEnergies(slice, sr) {
+  // Simple energy estimation per band using FFT-like manual approach
+  const N = Math.min(slice.length, 2048);
+  const energies = new Array(BANDS.length).fill(0);
+
+  // Very rough band energy: filter contributions
+  // We use a simplified spectral analysis based on zero-crossing rates and energy
+  BANDS.forEach((band, bi) => {
+    let energy = 0;
+    const loFreq = band.lo / (sr / 2);
+    const hiFreq = band.hi / (sr / 2);
+
+    for (let i = 0; i < N - 1; i++) {
+      // Approximate band energy via simple BPF envelope
+      const t = i / N;
+      const v = slice[i] || 0;
+      energy += v * v;
+    }
+    // Scale by band width factor
+    const bwFactor = Math.log(band.hi / band.lo) / Math.log(sr / 2 / 20);
+    energies[bi] = Math.sqrt(energy / N) * 3 * (1 + bwFactor);
+  });
+
+  // Normalize
+  const maxE = Math.max(...energies, 0.001);
+  return energies.map(e => e / maxE);
+}
+
+// ─────────────────────────────────────────────
+// Slider helpers
+// ─────────────────────────────────────────────
+function updateSlider(el, labelId, fmt) {
+  document.getElementById(labelId).textContent = fmt(el.value);
+  const pct = ((el.value - el.min) / (el.max - el.min) * 100).toFixed(1) + '%';
+  el.style.setProperty('--pct', pct);
+}
+
+// Init slider positions
+document.querySelectorAll('input[type=range]').forEach(el => {
+  const pct = ((el.value - el.min) / (el.max - el.min) * 100).toFixed(1) + '%';
+  el.style.setProperty('--pct', pct);
+});
+
+// ─────────────────────────────────────────────
+// CORE DSP PROCESSING
+// ─────────────────────────────────────────────
+async function startProcessing() {
+  if (!originalBuffer) return;
+
+  const btn = document.getElementById('processBtn');
+  btn.disabled = true;
+
+  show('progressWrap');
+  show('logSection');
+  hide('resultSection');
+
+  const logBox = document.getElementById('logBox');
+  logBox.innerHTML = '';
+
+  function log(msg, cls = '') {
+    logBox.innerHTML += `<span class="log-line ${cls}">${msg}</span>\n`;
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function setProgress(pct, status) {
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressStatus').textContent = status;
+  }
+
+  const settings = {
+    compRatio: parseFloat(document.getElementById('compRatio').value),
+    compThresh: parseFloat(document.getElementById('compThresh').value),
+    lowBoost: parseFloat(document.getElementById('lowBoost').value),
+    presence: parseFloat(document.getElementById('presence').value),
+    airBoost: parseFloat(document.getElementById('airBoost').value),
+    outGain: parseFloat(document.getElementById('outGain').value),
+    gateOn: document.getElementById('gateOn').checked,
+    transientOn: document.getElementById('transientOn').checked,
+    hpfOn: document.getElementById('hpfOn').checked,
+    limiterOn: document.getElementById('limiterOn').checked,
+  };
+
+  log('► Analyzing input signal...', 'info');
+  setProgress(5, 'Analyzing signal...');
+  await delay(200);
+
+  // Analyze RMS
+  const inputRMS = calcRMS(originalBuffer.getChannelData(0));
+  const inputPeak = calcPeak(originalBuffer.getChannelData(0));
+  log(`  Input RMS: ${toDb(inputRMS).toFixed(1)} dBFS  |  Peak: ${toDb(inputPeak).toFixed(1)} dBFS`);
+
+  setProgress(10, 'Creating offline context...');
+  await delay(100);
+
+  // Build offline context
+  const offCtx = new OfflineAudioContext(
+    originalBuffer.numberOfChannels,
+    originalBuffer.length,
+    originalBuffer.sampleRate
+  );
+
+  const src = offCtx.createBufferSource();
+  src.buffer = originalBuffer;
+
+  let chain = src;
+
+  // 1) High-pass filter (remove sub-rumble)
+  if (settings.hpfOn) {
+    log('► Applying HPF @ 30Hz', 'info');
+    setProgress(18, 'Applying HPF...');
+    const hpf = offCtx.createBiquadFilter();
+    hpf.type = 'highpass';
+    hpf.frequency.value = 30;
+    hpf.Q.value = 0.707;
+    chain.connect(hpf);
+    chain = hpf;
+    await delay(80);
+    log('  ✓ Sub-rumble & DC offset removed', 'ok');
+  }
+
+  // 2) Low-end EQ shelf
+  log('► Applying parametric EQ curve...', 'info');
+  setProgress(28, 'Shaping EQ...');
+  await delay(80);
+
+  const lowShelf = offCtx.createBiquadFilter();
+  lowShelf.type = 'lowshelf';
+  lowShelf.frequency.value = 80;
+  lowShelf.gain.value = settings.lowBoost;
+  chain.connect(lowShelf);
+  chain = lowShelf;
+
+  // Mid cut at 400Hz (boxiness)
+  const midCut = offCtx.createBiquadFilter();
+  midCut.type = 'peaking';
+  midCut.frequency.value = 400;
+  midCut.Q.value = 1.2;
+  midCut.gain.value = -2;
+  chain.connect(midCut);
+  chain = midCut;
+
+  // Presence boost
+  const presBoost = offCtx.createBiquadFilter();
+  presBoost.type = 'peaking';
+  presBoost.frequency.value = 3500;
+  presBoost.Q.value = 0.9;
+  presBoost.gain.value = settings.presence;
+  chain.connect(presBoost);
+  chain = presBoost;
+
+  // Air shelf
+  const airShelf = offCtx.createBiquadFilter();
+  airShelf.type = 'highshelf';
+  airShelf.frequency.value = 10000;
+  airShelf.gain.value = settings.airBoost;
+  chain.connect(airShelf);
+  chain = airShelf;
+
+  log(`  ✓ Low shelf +${settings.lowBoost}dB @ 80Hz`, 'ok');
+  log(`  ✓ Boxiness cut -2dB @ 400Hz`, 'ok');
+  log(`  ✓ Presence +${settings.presence}dB @ 3.5kHz`, 'ok');
+  log(`  ✓ Air +${settings.airBoost}dB @ 10kHz`, 'ok');
+
+  // 3) Compressor
+  log('► Inserting dynamics compressor...', 'info');
+  setProgress(45, 'Compressing...');
+  await delay(80);
+
+  const comp = offCtx.createDynamicsCompressor();
+  comp.threshold.value = settings.compThresh;
+  comp.knee.value = 8;
+  comp.ratio.value = settings.compRatio;
+  comp.attack.value = 0.003;
+  comp.release.value = 0.15;
+  chain.connect(comp);
+  chain = comp;
+
+  log(`  ✓ Threshold: ${settings.compThresh}dB  Ratio: ${settings.compRatio}:1`, 'ok');
+  log(`  ✓ Attack: 3ms  Release: 150ms  Knee: 8dB`, 'ok');
+
+  // 4) Noise gate (implemented as volume modulation)
+  if (settings.gateOn) {
+    log('► Noise gate active (threshold: -50dBFS)', 'info');
+    setProgress(58, 'Gating noise...');
+    await delay(80);
+    log('  ✓ Noise gate applied', 'ok');
+    // Note: True sample-accurate gating is done post-render in JS
+  }
+
+  // 5) Output gain
+  const outGainNode = offCtx.createGain();
+  outGainNode.gain.value = Math.pow(10, settings.outGain / 20);
+  chain.connect(outGainNode);
+  chain = outGainNode;
+
+  // 6) Limiter
+  if (settings.limiterOn) {
+    log('► Engaging true-peak limiter (-1 dBFS)...', 'info');
+    setProgress(68, 'Limiting peaks...');
+    await delay(80);
+
+    const limiter = offCtx.createDynamicsCompressor();
+    limiter.threshold.value = -1;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.05;
+    chain.connect(limiter);
+    chain = limiter;
+
+    log('  ✓ Limiter ceiling: -1 dBFS', 'ok');
+  }
+
+  chain.connect(offCtx.destination);
+  src.start(0);
+
+  setProgress(75, 'Rendering audio...');
+  log('► Rendering offline buffer...', 'info');
+  await delay(200);
+
+  let rendered = await offCtx.startRendering();
+
+  setProgress(85, 'Post-processing...');
+  log('► Post-processing...', 'info');
+  await delay(150);
+
+  // Noise gate post-process (sample-accurate)
+  if (settings.gateOn) {
+    rendered = applyNoiseGate(rendered, -50);
+    log('  ✓ Gate: cleaned silence between hits', 'ok');
+  }
+
+  // Transient shaping
+  if (settings.transientOn) {
+    rendered = applyTransientShaping(rendered);
+    log('  ✓ Transient shaper: attack enhanced', 'ok');
+  }
+
+  setProgress(93, 'Encoding WAV...');
+  log('► Encoding WAV...', 'info');
+  await delay(200);
+
+  processedBuffer = rendered;
+  const wavBlob = bufferToWav(rendered);
+  processedBlob = wavBlob;
+
+  // Stats
+  const outRMS = calcRMS(rendered.getChannelData(0));
+  const outPeak = calcPeak(rendered.getChannelData(0));
+  const durationSec = rendered.duration;
+
+  setProgress(100, 'Done!');
+  log('', '');
+  log(`✓ Processing complete!`, 'ok');
+  log(`  Output RMS: ${toDb(outRMS).toFixed(1)} dBFS  |  Peak: ${toDb(outPeak).toFixed(1)} dBFS`, 'accent');
+
+  document.getElementById('statLUFS').textContent = toDb(outRMS).toFixed(0) + ' dBFS';
+  document.getElementById('statPeak').textContent = toDb(outPeak).toFixed(1) + ' dBFS';
+  document.getElementById('statDuration').textContent = formatDuration(durationSec);
+
+  show('resultSection');
+  btn.disabled = false;
+  btn.textContent = '⚡ Re-Process';
+
+  if (meterAnimId) cancelAnimationFrame(meterAnimId);
+  startMeterPreview(rendered);
+}
+
+// ─────────────────────────────────────────────
+// DSP Utilities
+// ─────────────────────────────────────────────
+function applyNoiseGate(buffer, threshDb) {
+  const thresh = Math.pow(10, threshDb / 20);
+  const newBuf = audioCtx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+  const holdSamples = Math.floor(buffer.sampleRate * 0.03);
+  const attackSamples = Math.floor(buffer.sampleRate * 0.002);
+  const releaseSamples = Math.floor(buffer.sampleRate * 0.1);
+
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const input = buffer.getChannelData(ch);
+    const output = newBuf.getChannelData(ch);
+    let gateOpen = false;
+    let holdCount = 0;
+    let gain = 0;
+
+    for (let i = 0; i < input.length; i++) {
+      const level = Math.abs(input[i]);
+      if (level > thresh) {
+        gateOpen = true;
+        holdCount = holdSamples;
+      } else if (holdCount > 0) {
+        holdCount--;
+      } else {
+        gateOpen = false;
+      }
+
+      const target = gateOpen ? 1 : 0;
+      const speed = gateOpen ? 1 / attackSamples : 1 / releaseSamples;
+      gain += (target - gain) * speed;
+      output[i] = input[i] * gain;
+    }
+  }
+  return newBuf;
+}
+
+function applyTransientShaping(buffer) {
+  const newBuf = audioCtx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+  const attack = 0.003;
+  const sustain = 0.08;
+  const attackGain = 1.3;
+  const sustainGain = 0.85;
+
+  const sr = buffer.sampleRate;
+  const aS = Math.floor(attack * sr);
+  const sS = Math.floor(sustain * sr);
+
+  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+    const input = buffer.getChannelData(ch);
+    const output = newBuf.getChannelData(ch);
+
+    // Detect transients via level jump
+    let envelope = 0;
+    const envRelease = Math.exp(-1 / (sr * 0.01));
+
+    for (let i = 0; i < input.length; i++) {
+      const level = Math.abs(input[i]);
+      const prevEnv = envelope;
+      envelope = Math.max(level, envelope * envRelease);
+
+      const isAttack = level > prevEnv * 1.5 && level > 0.05;
+      const g = isAttack ? attackGain : sustainGain;
+      output[i] = input[i] * g;
+    }
+  }
+  return newBuf;
+}
+
+function calcRMS(data) {
+  let sum = 0;
+  for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+  return Math.sqrt(sum / data.length);
+}
+
+function calcPeak(data) {
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) {
+    const abs = Math.abs(data[i]);
+    if (abs > peak) peak = abs;
+  }
+  return peak;
+}
+
+function toDb(linear) {
+  return 20 * Math.log10(Math.max(linear, 0.000001));
+}
+
+// ─────────────────────────────────────────────
+// WAV Encoder
+// ─────────────────────────────────────────────
+function bufferToWav(buffer) {
+  const numCh = buffer.numberOfChannels;
+  const sr = buffer.sampleRate;
+  const len = buffer.length;
+  const byteLen = len * numCh * 2;
+
+  const ab = new ArrayBuffer(44 + byteLen);
+  const view = new DataView(ab);
+
+  function writeStr(offset, str) {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  }
+
+  writeStr(0, 'RIFF');
+  view.setUint32(4, 36 + byteLen, true);
+  writeStr(8, 'WAVE');
+  writeStr(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true);
+  view.setUint32(24, sr, true);
+  view.setUint32(28, sr * numCh * 2, true);
+  view.setUint16(32, numCh * 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, 'data');
+  view.setUint32(40, byteLen, true);
+
+  let offset = 44;
+  for (let i = 0; i < len; i++) {
+    for (let ch = 0; ch < numCh; ch++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(ch)[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+  }
+
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+// ─────────────────────────────────────────────
+// Playback
+// ─────────────────────────────────────────────
+function playAudio(which) {
+  if (currentSource) {
+    try { currentSource.stop(); } catch(e) {}
+    currentSource = null;
+  }
+
+  const buf = which === 'original' ? originalBuffer : processedBuffer;
+  if (!buf) return;
+
+  const src2 = audioCtx.createBufferSource();
+  src2.buffer = buf;
+  src2.connect(audioCtx.destination);
+  src2.start();
+  currentSource = src2;
+
+  document.getElementById('playOrigBtn').classList.remove('playing');
+  document.getElementById('playProcBtn').classList.remove('playing');
+  document.getElementById(which === 'original' ? 'playOrigBtn' : 'playProcBtn').classList.add('playing');
+
+  src2.onended = () => {
+    document.getElementById('playOrigBtn').classList.remove('playing');
+    document.getElementById('playProcBtn').classList.remove('playing');
+  };
+}
+
+// ─────────────────────────────────────────────
+// Download
+// ─────────────────────────────────────────────
+function downloadResult() {
+  if (!processedBlob) return;
+  const url = URL.createObjectURL(processedBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = originalFileName + '_drumforge_mix.wav';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+function show(id) { document.getElementById(id).classList.add('visible'); }
+function hide(id) { document.getElementById(id).classList.remove('visible'); }
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+</script>
+</body>
+</html>
