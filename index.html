@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>DrumForge v2 — Stem Mixer</title>
+<title>DrumForge — Drum Mix & Balance</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap');
 
@@ -17,12 +17,6 @@
   --text: #e8e8ea;
   --muted: #5a5a65;
   --green: #00e87a;
-  --kick-c: #ff4d00;
-  --snare-c: #ffb800;
-  --hihat-c: #00e87a;
-  --cymbal-c: #4db8ff;
-  --toms-c: #cc66ff;
-  --room-c: #ff6688;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,14 +26,14 @@ body {
   color: var(--text);
   font-family: 'DM Mono', monospace;
   min-height: 100vh;
-  overflow-x: hidden;
 }
 
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
 }
@@ -47,307 +41,128 @@ body::before {
 .container {
   position: relative;
   z-index: 1;
-  max-width: 960px;
+  max-width: 820px;
   margin: 0 auto;
-  padding: 32px 20px 80px;
+  padding: 36px 20px 80px;
 }
 
 header {
-  display: flex;
-  align-items: flex-end;
-  gap: 16px;
-  margin-bottom: 36px;
   border-bottom: 1px solid var(--border);
   padding-bottom: 20px;
+  margin-bottom: 32px;
 }
 
 .logo {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 48px;
+  font-size: 46px;
   letter-spacing: 3px;
   line-height: 1;
 }
 .logo span { color: var(--accent); }
+.tagline { font-size: 10px; color: var(--muted); letter-spacing: 3px; text-transform: uppercase; margin-top: 4px; }
 
-.logo-sub {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  padding-bottom: 8px;
-}
-
-.v-badge {
-  background: var(--accent);
-  color: #000;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 13px;
-  letter-spacing: 1px;
-  padding: 2px 8px;
-  border-radius: 2px;
-  margin-left: 6px;
-  vertical-align: middle;
-}
-
-/* UPLOAD */
+/* DROP ZONE */
 .drop-zone {
   border: 1.5px dashed var(--border);
   border-radius: 4px;
-  padding: 50px 32px;
+  padding: 48px 24px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s, background 0.2s;
   background: var(--surface);
   position: relative;
+  transition: border-color 0.2s, background 0.2s;
 }
-.drop-zone:hover, .drop-zone.drag-over {
-  border-color: var(--accent);
-  background: rgba(255,77,0,0.04);
-}
-.drop-zone input[type="file"] {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  cursor: pointer;
-  width: 100%;
-  height: 100%;
-}
-.drop-icon { font-size: 38px; margin-bottom: 14px; display: block; }
+.drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: rgba(255,77,0,0.04); }
+.drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-icon { font-size: 36px; margin-bottom: 12px; display: block; }
 .drop-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; margin-bottom: 6px; }
 .drop-sub { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
 
 .file-bar {
   display: none;
+  gap: 10px;
   align-items: center;
-  gap: 12px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 12px 16px;
-  margin-top: 12px;
+  padding: 11px 14px;
+  margin-top: 10px;
   font-size: 12px;
 }
-.file-bar.visible { display: flex; }
-.file-name { flex: 1; color: var(--accent2); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-bar.show { display: flex; }
+.file-name { flex: 1; color: var(--accent2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-size { color: var(--muted); font-size: 11px; }
 
 /* WAVEFORM */
-.section { display: none; margin-top: 24px; }
-.section.visible { display: block; }
-
-.section-label {
-  font-size: 10px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-
+.wave-section { display: none; margin-top: 22px; }
+.wave-section.show { display: block; }
+.sec-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 canvas {
-  width: 100%;
-  height: 70px;
-  display: block;
-  border-radius: 3px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  width: 100%; height: 68px; display: block;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 3px;
 }
 
-/* ANALYZE BUTTON */
-.analyze-btn {
-  width: 100%;
-  padding: 18px;
-  background: var(--surface);
-  color: var(--accent);
-  border: 1.5px solid var(--accent);
-  border-radius: 4px;
+/* CONTROLS */
+.controls { display: none; margin-top: 28px; }
+.controls.show { display: block; }
+
+.panel-head {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  letter-spacing: 3px;
-  cursor: pointer;
-  transition: all 0.15s;
-  margin-top: 20px;
-}
-.analyze-btn:hover { background: rgba(255,77,0,0.08); box-shadow: 0 0 24px rgba(255,77,0,0.2); }
-.analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* PROGRESS */
-.progress-wrap { display: none; margin-top: 16px; }
-.progress-wrap.visible { display: block; }
-.progress-bar-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
-.progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.4s; width: 0%; }
-.progress-status { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
-
-/* STEM MIXER */
-.mixer-panel { display: none; margin-top: 28px; }
-.mixer-panel.visible { display: block; }
-
-.mixer-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
+  font-size: 18px;
   letter-spacing: 2px;
-  margin-bottom: 6px;
+  margin-bottom: 18px;
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.mixer-desc {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 20px;
-  line-height: 1.6;
-}
-
-.stems-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 10px;
-  margin-bottom: 20px;
-}
-
-.stem-channel {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 14px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  transition: border-color 0.2s;
-}
-
-.stem-channel:hover { border-color: var(--muted); }
-.stem-channel.muted { opacity: 0.4; }
-
-.stem-icon { font-size: 22px; }
-
-.stem-name {
-  font-size: 9px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  text-align: center;
-}
-
-/* Vertical fader */
-.fader-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.fader-val {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-input[type="range"].vfader {
-  -webkit-appearance: slider-vertical;
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 28px;
-  height: 100px;
-  cursor: pointer;
-  background: transparent;
-  outline: none;
-}
-
-input[type="range"].vfader::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px;
-  height: 10px;
-  border-radius: 2px;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 6px rgba(0,0,0,0.5);
-}
-
-input[type="range"].vfader::-webkit-slider-runnable-track {
-  width: 4px;
-  border-radius: 2px;
-}
-
-/* Per-stem colors */
-.stem-kick input[type="range"].vfader::-webkit-slider-thumb { background: var(--kick-c); }
-.stem-kick input[type="range"].vfader::-webkit-slider-runnable-track { background: linear-gradient(to top, var(--kick-c) var(--pct,75%), var(--border) var(--pct,75%)); }
-.stem-kick .stem-name { color: var(--kick-c); }
-.stem-kick .fader-val { color: var(--kick-c); }
-
-.stem-snare input[type="range"].vfader::-webkit-slider-thumb { background: var(--snare-c); }
-.stem-snare input[type="range"].vfader::-webkit-slider-runnable-track { background: linear-gradient(to top, var(--snare-c) var(--pct,75%), var(--border) var(--pct,75%)); }
-.stem-snare .stem-name { color: var(--snare-c); }
-.stem-snare .fader-val { color: var(--snare-c); }
-
-.stem-hihat input[type="range"].vfader::-webkit-slider-thumb { background: var(--hihat-c); }
-.stem-hihat input[type="range"].vfader::-webkit-slider-runnable-track { background: linear-gradient(to top, var(--hihat-c) var(--pct,75%), var(--border) var(--pct,75%)); }
-.stem-hihat .stem-name { color: var(--hihat-c); }
-.stem-hihat .fader-val { color: var(--hihat-c); }
-
-.stem-cymbal input[type="range"].vfader::-webkit-slider-thumb { background: var(--cymbal-c); }
-.stem-cymbal input[type="range"].vfader::-webkit-slider-runnable-track { background: linear-gradient(to top, var(--cymbal-c) var(--pct,75%), var(--border) var(--pct,75%)); }
-.stem-cymbal .stem-name { color: var(--cymbal-c); }
-.stem-cymbal .fader-val { color: var(--cymbal-c); }
-
-.stem-toms input[type="range"].vfader::-webkit-slider-thumb { background: var(--toms-c); }
-.stem-toms input[type="range"].vfader::-webkit-slider-runnable-track { background: linear-gradient(to top, var(--toms-c) var(--pct,75%), var(--border) var(--pct,75%)); }
-.stem-toms .stem-name { color: var(--toms-c); }
-.stem-toms .fader-val { color: var(--toms-c); }
-
-.stem-room input[type="range"].vfader::-webkit-slider-thumb { background: var(--room-c); }
-.stem-room input[type="range"].vfader::-webkit-slider-runnable-track { background: linear-gradient(to top, var(--room-c) var(--pct,75%), var(--border) var(--pct,75%)); }
-.stem-room .stem-name { color: var(--room-c); }
-.stem-room .fader-val { color: var(--room-c); }
-
-/* Mute button */
-.mute-btn {
-  width: 100%;
-  padding: 5px 0;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 2px;
-  color: var(--muted);
+.badge {
   font-family: 'DM Mono', monospace;
   font-size: 9px;
-  letter-spacing: 1px;
-  cursor: pointer;
+  letter-spacing: 2px;
+  background: var(--accent);
+  color: #000;
+  padding: 3px 8px;
+  border-radius: 2px;
   text-transform: uppercase;
-  transition: all 0.15s;
 }
-.mute-btn:hover { border-color: var(--text); color: var(--text); }
-.mute-btn.active { background: var(--red); border-color: var(--red); color: #fff; }
 
-/* EQ section per stem */
-.eq-row {
+/* KNOB GRID — the main controls */
+.knob-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 16px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
 }
 
-.eq-mini {
+.knob-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 10px 12px;
+  border-radius: 4px;
+  padding: 16px 18px;
 }
 
-.eq-mini-label {
-  font-size: 9px;
+/* CYMBAL CARD — highlighted */
+.knob-card.cymbal-card {
+  border-color: #4db8ff;
+  background: rgba(77,184,255,0.04);
+}
+
+.knob-label {
+  font-size: 10px;
   letter-spacing: 2px;
-  color: var(--muted);
   text-transform: uppercase;
-  margin-bottom: 8px;
+  color: var(--muted);
+  margin-bottom: 12px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
+.knob-val { letter-spacing: 0; font-weight: 500; }
+.cymbal-card .knob-val { color: #4db8ff; }
+.knob-card:not(.cymbal-card) .knob-val { color: var(--accent2); }
 
-.eq-mini-val { color: var(--accent2); }
-
-input[type="range"].hfader {
+input[type="range"].slider {
   -webkit-appearance: none;
   width: 100%;
   height: 3px;
@@ -356,58 +171,48 @@ input[type="range"].hfader {
   outline: none;
   cursor: pointer;
 }
-input[type="range"].hfader::-webkit-slider-thumb {
+input[type="range"].slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 15px; height: 15px;
   border-radius: 50%;
-  background: var(--accent);
   cursor: pointer;
   border: 2px solid var(--bg);
+  box-shadow: 0 0 6px rgba(0,0,0,0.4);
 }
-input[type="range"].hfader::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct,50%), var(--border) var(--pct,50%));
+input[type="range"].slider::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 2px;
 }
 
-/* Master section */
-.master-section {
+/* Cymbal slider — blue */
+.cymbal-card input[type="range"].slider::-webkit-slider-thumb { background: #4db8ff; box-shadow: 0 0 8px rgba(77,184,255,0.4); }
+.cymbal-card input[type="range"].slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #4db8ff 0%, #4db8ff var(--pct,40%), var(--border) var(--pct,40%));
+}
+
+/* Other sliders — orange */
+.knob-card:not(.cymbal-card) input[type="range"].slider::-webkit-slider-thumb { background: var(--accent); }
+.knob-card:not(.cymbal-card) input[type="range"].slider::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--accent) 0%, var(--accent) var(--pct,50%), var(--border) var(--pct,50%));
+}
+
+.hint-text {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 8px;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+}
+
+/* TOGGLES */
+.toggle-block {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 18px;
-  margin-bottom: 20px;
-}
-
-.master-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 14px;
-  letter-spacing: 2px;
-  color: var(--muted);
+  padding: 14px 18px;
   margin-bottom: 14px;
 }
 
-.master-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.master-ctrl label {
-  display: block;
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.master-ctrl span { color: var(--accent2); letter-spacing: 0; }
-
-/* Toggle */
 .toggle-row {
   display: flex;
   align-items: center;
@@ -419,28 +224,25 @@ input[type="range"].hfader::-webkit-slider-runnable-track {
 .t-name { font-size: 12px; }
 .t-desc { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-.toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+.toggle { position: relative; width: 38px; height: 21px; flex-shrink: 0; }
 .toggle input { opacity: 0; width: 0; height: 0; }
 .toggle-track {
   position: absolute; inset: 0;
-  background: var(--border);
-  border-radius: 10px;
-  cursor: pointer;
+  background: var(--border); border-radius: 11px; cursor: pointer;
   transition: background 0.2s;
 }
 .toggle-track::before {
   content: '';
   position: absolute;
-  width: 14px; height: 14px;
-  background: var(--muted);
-  border-radius: 50%;
+  width: 15px; height: 15px;
+  background: var(--muted); border-radius: 50%;
   top: 3px; left: 3px;
   transition: transform 0.2s, background 0.2s;
 }
-.toggle input:checked + .toggle-track { background: rgba(255,77,0,0.2); border: 1px solid var(--accent); }
-.toggle input:checked + .toggle-track::before { transform: translateX(16px); background: var(--accent); }
+.toggle input:checked + .toggle-track { background: rgba(255,77,0,0.15); border: 1px solid var(--accent); }
+.toggle input:checked + .toggle-track::before { transform: translateX(17px); background: var(--accent); }
 
-/* Process button */
+/* PROCESS BUTTON */
 .process-btn {
   width: 100%;
   padding: 18px;
@@ -453,22 +255,31 @@ input[type="range"].hfader::-webkit-slider-runnable-track {
   letter-spacing: 4px;
   cursor: pointer;
   transition: all 0.15s;
-  box-shadow: 0 4px 24px rgba(255,77,0,0.3);
+  box-shadow: 0 4px 24px rgba(255,77,0,0.28);
 }
-.process-btn:hover { background: #ff6520; box-shadow: 0 6px 32px rgba(255,77,0,0.5); transform: translateY(-1px); }
+.process-btn:hover { background: #ff6520; box-shadow: 0 6px 32px rgba(255,77,0,0.45); transform: translateY(-1px); }
 .process-btn:active { transform: translateY(0); }
 .process-btn:disabled { background: var(--border); color: var(--muted); box-shadow: none; cursor: not-allowed; transform: none; }
 
-/* Result */
+/* PROGRESS */
+.prog-wrap { display: none; margin-top: 16px; }
+.prog-wrap.show { display: block; }
+.prog-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+.prog-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.35s; width: 0%; }
+.prog-status { font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+/* RESULT */
+.result { display: none; margin-top: 24px; }
+.result.show { display: block; }
+
 .result-card {
   background: var(--card);
   border: 1px solid var(--green);
   border-radius: 4px;
   padding: 22px;
-  box-shadow: 0 0 24px rgba(0,232,122,0.08);
+  box-shadow: 0 0 28px rgba(0,232,122,0.07);
 }
-
-.result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.result-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .result-icon {
   width: 34px; height: 34px;
   background: rgba(0,232,122,0.1);
@@ -480,31 +291,26 @@ input[type="range"].hfader::-webkit-slider-runnable-track {
 .result-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--green); }
 .result-sub { font-size: 11px; color: var(--muted); }
 
-.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px; }
-.stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 10px; text-align: center; }
-.stat-val { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--accent2); }
-.stat-key { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 10px; text-align: center; }
+.stat-v { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--accent2); }
+.stat-k { font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-top: 2px; }
 
-.playback-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.play-row { display: flex; gap: 10px; margin-bottom: 14px; }
 .play-btn {
   flex: 1; padding: 10px;
   border-radius: 3px; border: 1px solid;
   font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px;
-  cursor: pointer; text-transform: uppercase; transition: all 0.15s;
-  background: transparent;
+  cursor: pointer; text-transform: uppercase; transition: all 0.15s; background: transparent;
 }
-.play-btn.original { border-color: var(--border); color: var(--muted); }
-.play-btn.original:hover { border-color: var(--text); color: var(--text); }
-.play-btn.processed { border-color: var(--green); color: var(--green); background: rgba(0,232,122,0.05); }
-.play-btn.processed:hover { background: rgba(0,232,122,0.12); }
-.play-btn.playing { animation: pulse 0.8s ease-in-out infinite alternate; }
+.play-btn.orig { border-color: var(--border); color: var(--muted); }
+.play-btn.orig:hover { border-color: var(--text); color: var(--text); }
+.play-btn.proc { border-color: var(--green); color: var(--green); background: rgba(0,232,122,0.05); }
+.play-btn.proc:hover { background: rgba(0,232,122,0.12); }
+.play-btn.playing { animation: glow 0.8s ease-in-out infinite alternate; }
+@keyframes glow { from { box-shadow: none; } to { box-shadow: 0 0 12px rgba(0,232,122,0.4); } }
 
-@keyframes pulse {
-  from { box-shadow: 0 0 0 rgba(0,232,122,0.2); }
-  to { box-shadow: 0 0 12px rgba(0,232,122,0.4); }
-}
-
-.download-btn {
+.dl-btn {
   width: 100%;
   padding: 14px;
   background: var(--green);
@@ -516,774 +322,496 @@ input[type="range"].hfader::-webkit-slider-runnable-track {
   letter-spacing: 3px;
   cursor: pointer;
   transition: all 0.15s;
-  box-shadow: 0 2px 16px rgba(0,232,122,0.2);
 }
-.download-btn:hover { background: #00ff88; box-shadow: 0 4px 24px rgba(0,232,122,0.35); transform: translateY(-1px); }
-
-/* Log */
-.log-box {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 12px 14px;
-  max-height: 140px;
-  overflow-y: auto;
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.8;
-  margin-top: 14px;
-}
-.log-line { display: block; }
-.log-line.ok { color: var(--green); }
-.log-line.accent { color: var(--accent2); }
-.log-line.info { color: #6080ff; }
+.dl-btn:hover { background: #00ff88; transform: translateY(-1px); }
 
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-@media (max-width: 640px) {
-  .stems-grid { grid-template-columns: repeat(3, 1fr); }
-  .master-grid { grid-template-columns: 1fr 1fr; }
-  .eq-row { grid-template-columns: 1fr; }
+@media (max-width: 540px) {
+  .knob-grid { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr 1fr; }
 }
 </style>
 </head>
 <body>
 <div class="container">
 
-<header>
-  <div>
-    <div class="logo">Drum<span>Forge</span> <span class="v-badge">V2</span></div>
-    <div class="logo-sub">Stem Separation &amp; Individual Mix Control</div>
-  </div>
-</header>
+  <header>
+    <div class="logo">Drum<span>Forge</span></div>
+    <div class="tagline">Mix &amp; Balance — No Static, No Splitting</div>
+  </header>
 
-<!-- UPLOAD -->
-<div class="drop-zone" id="dropZone">
-  <input type="file" id="fileInput" accept=".wav,.mp3,.aif,.aiff,.m4a,.ogg,.flac" />
-  <span class="drop-icon">🥁</span>
-  <div class="drop-title">Drop Your Drum Recording</div>
-  <div class="drop-sub">WAV · AIFF · MP3 — exported from GarageBand</div>
-</div>
-
-<div class="file-bar" id="fileBar">
-  <span>📁</span>
-  <span class="file-name" id="fileName">—</span>
-  <span class="file-size" id="fileSize">—</span>
-</div>
-
-<!-- WAVEFORM -->
-<div class="section" id="waveformSection">
-  <div class="section-label">Input Waveform</div>
-  <canvas id="waveformCanvas"></canvas>
-</div>
-
-<!-- ANALYZE BUTTON -->
-<div class="section" id="analyzeSection">
-  <button class="analyze-btn" id="analyzeBtn" onclick="runStemAnalysis()">
-    🔬 Analyze &amp; Separate Stems
-  </button>
-</div>
-
-<!-- PROGRESS -->
-<div class="progress-wrap" id="progressWrap">
-  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
-  <div class="progress-status" id="progressStatus">Starting...</div>
-</div>
-<div class="log-box" id="logBox" style="display:none"></div>
-
-<!-- STEM MIXER -->
-<div class="mixer-panel" id="mixerPanel">
-
-  <div class="mixer-title">🎚 Stem Mixer</div>
-  <div class="mixer-desc">
-    Each drum element has been separated by frequency band. Adjust faders to balance your kit. Cymbals too loud? Pull that fader down. Need more kick punch? Push it up.
+  <!-- UPLOAD -->
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".wav,.mp3,.aif,.aiff,.m4a,.ogg,.flac" />
+    <span class="drop-icon">🥁</span>
+    <div class="drop-title">Drop Your Drum Recording</div>
+    <div class="drop-sub">WAV · AIFF · MP3 exported from GarageBand</div>
   </div>
 
-  <!-- FADER CHANNELS -->
-  <div class="stems-grid" id="stemsGrid">
-
-    <div class="stem-channel stem-kick" id="ch-kick">
-      <div class="stem-icon">🥁</div>
-      <div class="stem-name">Kick</div>
-      <div class="fader-wrap">
-        <input type="range" class="vfader" id="fader-kick" min="0" max="150" value="100"
-          oninput="updateFader('kick',this.value)" style="--pct:66.6%" />
-        <div class="fader-val" id="val-kick">0 dB</div>
-      </div>
-      <button class="mute-btn" id="mute-kick" onclick="toggleMute('kick')">Mute</button>
-    </div>
-
-    <div class="stem-channel stem-snare" id="ch-snare">
-      <div class="stem-icon">🪘</div>
-      <div class="stem-name">Snare</div>
-      <div class="fader-wrap">
-        <input type="range" class="vfader" id="fader-snare" min="0" max="150" value="100"
-          oninput="updateFader('snare',this.value)" style="--pct:66.6%" />
-        <div class="fader-val" id="val-snare">0 dB</div>
-      </div>
-      <button class="mute-btn" id="mute-snare" onclick="toggleMute('snare')">Mute</button>
-    </div>
-
-    <div class="stem-channel stem-hihat" id="ch-hihat">
-      <div class="stem-icon">🎵</div>
-      <div class="stem-name">Hi-Hat</div>
-      <div class="fader-wrap">
-        <input type="range" class="vfader" id="fader-hihat" min="0" max="150" value="85"
-          oninput="updateFader('hihat',this.value)" style="--pct:56.6%" />
-        <div class="fader-val" id="val-hihat">-1.4 dB</div>
-      </div>
-      <button class="mute-btn" id="mute-hihat" onclick="toggleMute('hihat')">Mute</button>
-    </div>
-
-    <div class="stem-channel stem-cymbal" id="ch-cymbal">
-      <div class="stem-icon">✨</div>
-      <div class="stem-name">Cymbals</div>
-      <div class="fader-wrap">
-        <input type="range" class="vfader" id="fader-cymbal" min="0" max="150" value="75"
-          oninput="updateFader('cymbal',this.value)" style="--pct:50%" />
-        <div class="fader-val" id="val-cymbal">-2.5 dB</div>
-      </div>
-      <button class="mute-btn" id="mute-cymbal" onclick="toggleMute('cymbal')">Mute</button>
-    </div>
-
-    <div class="stem-channel stem-toms" id="ch-toms">
-      <div class="stem-icon">🔵</div>
-      <div class="stem-name">Toms</div>
-      <div class="fader-wrap">
-        <input type="range" class="vfader" id="fader-toms" min="0" max="150" value="100"
-          oninput="updateFader('toms',this.value)" style="--pct:66.6%" />
-        <div class="fader-val" id="val-toms">0 dB</div>
-      </div>
-      <button class="mute-btn" id="mute-toms" onclick="toggleMute('toms')">Mute</button>
-    </div>
-
-    <div class="stem-channel stem-room" id="ch-room">
-      <div class="stem-icon">🌊</div>
-      <div class="stem-name">Room</div>
-      <div class="fader-wrap">
-        <input type="range" class="vfader" id="fader-room" min="0" max="150" value="80"
-          oninput="updateFader('room',this.value)" style="--pct:53.3%" />
-        <div class="fader-val" id="val-room">-1.9 dB</div>
-      </div>
-      <button class="mute-btn" id="mute-room" onclick="toggleMute('room')">Mute</button>
-    </div>
-
+  <div class="file-bar" id="fileBar">
+    <span>📁</span>
+    <span class="file-name" id="fileName"></span>
+    <span class="file-size" id="fileSize"></span>
   </div>
 
-  <!-- PER-STEM EQ -->
-  <div class="section-label" style="margin-bottom:8px">Per-Stem EQ</div>
-  <div class="eq-row">
-    <div class="eq-mini">
-      <div class="eq-mini-label">Kick Low <span class="eq-mini-val" id="eq-kick-low-v">+3 dB</span></div>
-      <input type="range" class="hfader" id="eq-kick-low" min="-8" max="8" value="3"
-        oninput="updateHSlider(this,'eq-kick-low-v',v=>(v>=0?'+':'')+v+' dB')" style="--pct:68.75%" />
-    </div>
-    <div class="eq-mini">
-      <div class="eq-mini-label">Snare Mid <span class="eq-mini-val" id="eq-snare-mid-v">+2 dB</span></div>
-      <input type="range" class="hfader" id="eq-snare-mid" min="-8" max="8" value="2"
-        oninput="updateHSlider(this,'eq-snare-mid-v',v=>(v>=0?'+':'')+v+' dB')" style="--pct:62.5%" />
-    </div>
-    <div class="eq-mini">
-      <div class="eq-mini-label">Cymbal Air <span class="eq-mini-val" id="eq-cymbal-air-v">-3 dB</span></div>
-      <input type="range" class="hfader" id="eq-cymbal-air" min="-8" max="8" value="-3"
-        oninput="updateHSlider(this,'eq-cymbal-air-v',v=>(v>=0?'+':'')+v+' dB')" style="--pct:31.25%" />
-    </div>
+  <!-- WAVEFORM -->
+  <div class="wave-section" id="waveSection">
+    <div class="sec-label">Input Waveform</div>
+    <canvas id="waveCanvas"></canvas>
   </div>
 
-  <!-- MASTER BUS -->
-  <div class="master-section">
-    <div class="master-title">Master Bus</div>
-    <div class="master-grid">
-      <div class="master-ctrl">
-        <label>Compression <span id="mcomp-v">3:1</span></label>
-        <input type="range" class="hfader" id="mcomp" min="1" max="8" step="0.5" value="3"
-          oninput="updateHSlider(this,'mcomp-v',v=>v+':1')" style="--pct:28.6%" />
+  <!-- CONTROLS -->
+  <div class="controls" id="controls">
+    <div class="panel-head">Mix Settings <span class="badge">Transparent DSP</span></div>
+
+    <div class="knob-grid">
+
+      <!-- CYMBAL REDUCTION — the star of the show -->
+      <div class="knob-card cymbal-card">
+        <div class="knob-label">
+          Cymbal Reduction
+          <span class="knob-val" id="v-cymbal">-4 dB</span>
+        </div>
+        <input type="range" class="slider" id="s-cymbal"
+          min="-18" max="0" step="0.5" value="-4"
+          oninput="sl(this,'v-cymbal',v=>v+' dB')" style="--pct:77.8%" />
+        <div class="hint-text">Cuts 6–14kHz — targets crash &amp; ride cymbals without touching kick or snare</div>
       </div>
-      <div class="master-ctrl">
-        <label>Output Gain <span id="mgain-v">0 dB</span></label>
-        <input type="range" class="hfader" id="mgain" min="-12" max="6" step="0.5" value="0"
-          oninput="updateHSlider(this,'mgain-v',v=>(v>=0?'+':'')+v+' dB')" style="--pct:66.7%" />
+
+      <!-- HI-HAT -->
+      <div class="knob-card">
+        <div class="knob-label">
+          Hi-Hat Trim
+          <span class="knob-val" id="v-hihat">-2 dB</span>
+        </div>
+        <input type="range" class="slider" id="s-hihat"
+          min="-12" max="4" step="0.5" value="-2"
+          oninput="sl(this,'v-hihat',v=>(v>=0?'+':'')+v+' dB')" style="--pct:62.5%" />
+        <div class="hint-text">Cuts 8–12kHz hi-hat presence — separate from cymbal range</div>
       </div>
-      <div class="master-ctrl">
-        <label>Presence <span id="mpres-v">+2 dB</span></label>
-        <input type="range" class="hfader" id="mpres" min="-6" max="8" step="0.5" value="2"
-          oninput="updateHSlider(this,'mpres-v',v=>(v>=0?'+':'')+v+' dB')" style="--pct:57.1%" />
+
+      <!-- KICK PUNCH -->
+      <div class="knob-card">
+        <div class="knob-label">
+          Kick Punch
+          <span class="knob-val" id="v-kick">+3 dB</span>
+        </div>
+        <input type="range" class="slider" id="s-kick"
+          min="-6" max="10" step="0.5" value="3"
+          oninput="sl(this,'v-kick',v=>(v>=0?'+':'')+v+' dB')" style="--pct:56.25%" />
+        <div class="hint-text">Boosts 60–100Hz — adds weight and thump to the kick drum</div>
       </div>
+
+      <!-- SNARE CRACK -->
+      <div class="knob-card">
+        <div class="knob-label">
+          Snare Crack
+          <span class="knob-val" id="v-snare">+2 dB</span>
+        </div>
+        <input type="range" class="slider" id="s-snare"
+          min="-6" max="10" step="0.5" value="2"
+          oninput="sl(this,'v-snare',v=>(v>=0?'+':'')+v+' dB')" style="--pct:50%" />
+        <div class="hint-text">Boosts 200–400Hz snare body + 3–5kHz crack and presence</div>
+      </div>
+
+      <!-- BODY CUT -->
+      <div class="knob-card">
+        <div class="knob-label">
+          Boxiness Cut
+          <span class="knob-val" id="v-box">-2 dB</span>
+        </div>
+        <input type="range" class="slider" id="s-box"
+          min="-10" max="4" step="0.5" value="-2"
+          oninput="sl(this,'v-box',v=>(v>=0?'+':'')+v+' dB')" style="--pct:57.1%" />
+        <div class="hint-text">Cuts 300–500Hz room buildup — removes the "cardboard box" sound</div>
+      </div>
+
+      <!-- OUTPUT GAIN -->
+      <div class="knob-card">
+        <div class="knob-label">
+          Output Gain
+          <span class="knob-val" id="v-gain">0 dB</span>
+        </div>
+        <input type="range" class="slider" id="s-gain"
+          min="-12" max="6" step="0.5" value="0"
+          oninput="sl(this,'v-gain',v=>(v>=0?'+':'')+v+' dB')" style="--pct:66.7%" />
+        <div class="hint-text">Overall output level after all processing</div>
+      </div>
+
     </div>
-    <div style="margin-top:14px">
+
+    <!-- COMPRESSION -->
+    <div class="knob-card" style="margin-bottom:12px">
+      <div class="knob-label">
+        Compression
+        <span class="knob-val" id="v-comp" style="color:var(--accent2)">3:1</span>
+      </div>
+      <input type="range" class="slider" id="s-comp"
+        min="1" max="8" step="0.5" value="3"
+        oninput="sl(this,'v-comp',v=>v+':1')" style="--pct:28.6%" />
+      <div class="hint-text" style="margin-top:8px">Glues the kit together. -18dB threshold, 3ms attack, 150ms release. Set to 1:1 to bypass.</div>
+    </div>
+
+    <!-- TOGGLES -->
+    <div class="toggle-block">
       <div class="toggle-row">
-        <div><div class="t-name">Noise Gate</div><div class="t-desc">Silence bleed between hits</div></div>
-        <label class="toggle"><input type="checkbox" id="gateOn" checked /><span class="toggle-track"></span></label>
+        <div><div class="t-name">Noise Gate</div><div class="t-desc">Silence bleed and room noise between hits</div></div>
+        <label class="toggle"><input type="checkbox" id="t-gate" checked /><span class="toggle-track"></span></label>
       </div>
       <div class="toggle-row">
-        <div><div class="t-name">Transient Shaper</div><div class="t-desc">Tighten attack, punchier hits</div></div>
-        <label class="toggle"><input type="checkbox" id="transientOn" checked /><span class="toggle-track"></span></label>
+        <div><div class="t-name">Transient Shaper</div><div class="t-desc">Tighten attack for punchier, snappier hits</div></div>
+        <label class="toggle"><input type="checkbox" id="t-trans" checked /><span class="toggle-track"></span></label>
       </div>
       <div class="toggle-row">
-        <div><div class="t-name">Limiter (-1 dBFS)</div><div class="t-desc">Prevent output clipping</div></div>
-        <label class="toggle"><input type="checkbox" id="limiterOn" checked /><span class="toggle-track"></span></label>
+        <div><div class="t-name">HPF @ 30Hz</div><div class="t-desc">Remove sub-rumble and DC offset</div></div>
+        <label class="toggle"><input type="checkbox" id="t-hpf" checked /><span class="toggle-track"></span></label>
       </div>
+      <div class="toggle-row">
+        <div><div class="t-name">Limiter (-1 dBFS)</div><div class="t-desc">Prevent clipping on output</div></div>
+        <label class="toggle"><input type="checkbox" id="t-lim" checked /><span class="toggle-track"></span></label>
+      </div>
+    </div>
+
+    <button class="process-btn" id="processBtn" onclick="process()">
+      ⚡ Mix &amp; Balance Drums
+    </button>
+
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="prog-wrap" id="progWrap">
+    <div class="prog-bg"><div class="prog-fill" id="progFill"></div></div>
+    <div class="prog-status" id="progStatus">Starting...</div>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result" id="result">
+    <div class="result-card">
+      <div class="result-hd">
+        <div class="result-icon">✓</div>
+        <div>
+          <div class="result-title">Mix Complete</div>
+          <div class="result-sub" id="resultSub">Ready to download</div>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="stat-v" id="sPeak">—</div><div class="stat-k">True Peak</div></div>
+        <div class="stat"><div class="stat-v" id="sDur">—</div><div class="stat-k">Duration</div></div>
+        <div class="stat"><div class="stat-v" id="sGain">—</div><div class="stat-k">Output Level</div></div>
+      </div>
+      <div class="play-row">
+        <button class="play-btn orig" id="btnOrig" onclick="play('orig')">▶ Original</button>
+        <button class="play-btn proc" id="btnProc" onclick="play('proc')">▶ Mixed</button>
+      </div>
+      <button class="dl-btn" onclick="download()">⬇ Download Mixed WAV</button>
     </div>
   </div>
 
-  <button class="process-btn" id="processBtn" onclick="renderFinalMix()">
-    ⚡ Render Final Mix
-  </button>
-
 </div>
-
-<!-- RESULT -->
-<div class="section" id="resultSection">
-  <div class="result-card">
-    <div class="result-header">
-      <div class="result-icon">✓</div>
-      <div>
-        <div class="result-title">Mix Complete</div>
-        <div class="result-sub" id="resultSub">Ready to download</div>
-      </div>
-    </div>
-    <div class="stats-row">
-      <div class="stat-box"><div class="stat-val" id="statPeak">—</div><div class="stat-key">True Peak</div></div>
-      <div class="stat-box"><div class="stat-val" id="statDuration">—</div><div class="stat-key">Duration</div></div>
-      <div class="stat-box"><div class="stat-val" id="statStems">6</div><div class="stat-key">Stems Mixed</div></div>
-    </div>
-    <div class="playback-row">
-      <button class="play-btn original" id="playOrigBtn" onclick="playAudio('original')">▶ Original</button>
-      <button class="play-btn processed" id="playProcBtn" onclick="playAudio('processed')">▶ Mixed</button>
-    </div>
-    <button class="download-btn" onclick="downloadResult()">⬇ Download Mixed WAV</button>
-  </div>
-</div>
-
-</div><!-- /container -->
 
 <script>
-// ─── STATE ───────────────────────────────────────────
-let audioCtx = null;
-let originalBuffer = null;
-let processedBuffer = null;
-let processedBlob = null;
-let originalFileName = 'drum_recording';
-let currentSource = null;
-let stemBuffers = {}; // { kick, snare, hihat, cymbal, toms, room }
-let muteState = { kick:false, snare:false, hihat:false, cymbal:false, toms:false, room:false };
+let actx = null, origBuf = null, procBuf = null, procBlob = null;
+let fname = 'drum_recording', curSrc = null;
 
-// Stem frequency band definitions
-const STEM_BANDS = {
-  kick:   { lo: 20,   hi: 200,  desc: 'Sub & low bass transients' },
-  snare:  { lo: 150,  hi: 900,  desc: 'Mid crack & body' },
-  toms:   { lo: 80,   hi: 500,  desc: 'Mid-low punch' },
-  hihat:  { lo: 4000, hi: 10000,desc: 'Upper mid shimmer' },
-  cymbal: { lo: 6000, hi: 20000,desc: 'High frequency wash' },
-  room:   { lo: 200,  hi: 2000, desc: 'Room, reverb, bleed' },
-};
+// ── DROP / UPLOAD ─────────────────────────────────
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); if(e.dataTransfer.files[0]) load(e.dataTransfer.files[0]); });
+document.getElementById('fileInput').addEventListener('change', e => { if(e.target.files[0]) load(e.target.files[0]); });
 
-// ─── FILE HANDLING ────────────────────────────────────
-const dropZone = document.getElementById('dropZone');
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
-});
-document.getElementById('fileInput').addEventListener('change', e => {
-  if (e.target.files[0]) handleFile(e.target.files[0]);
-});
-
-function handleFile(file) {
-  originalFileName = file.name.replace(/\.[^/.]+$/, '');
+function load(file) {
+  fname = file.name.replace(/\.[^/.]+$/, '');
   document.getElementById('fileName').textContent = file.name;
-  document.getElementById('fileSize').textContent = formatBytes(file.size);
-  document.getElementById('fileBar').classList.add('visible');
+  document.getElementById('fileSize').textContent = fmt(file.size);
+  document.getElementById('fileBar').classList.add('show');
 
-  const reader = new FileReader();
-  reader.onload = async e => {
+  const r = new FileReader();
+  r.onload = async e => {
     try {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      originalBuffer = await audioCtx.decodeAudioData(e.target.result.slice(0));
-      drawWaveform(originalBuffer, 'waveformCanvas', '#ff4d00');
-      show('waveformSection');
-      show('analyzeSection');
-      hide('mixerPanel');
-      hide('resultSection');
-    } catch(err) {
-      alert('Could not decode audio: ' + err.message);
-    }
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      origBuf = await actx.decodeAudioData(e.target.result.slice(0));
+      drawWave(origBuf);
+      document.getElementById('waveSection').classList.add('show');
+      document.getElementById('controls').classList.add('show');
+      document.getElementById('result').classList.remove('show');
+    } catch(err) { alert('Could not decode: ' + err.message); }
   };
-  reader.readAsArrayBuffer(file);
+  r.readAsArrayBuffer(file);
 }
 
-// ─── WAVEFORM ─────────────────────────────────────────
-function drawWaveform(buffer, canvasId, color) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth * (window.devicePixelRatio || 1);
-  canvas.height = 70 * (window.devicePixelRatio || 1);
-  const W = canvas.width, H = canvas.height;
+// ── WAVEFORM ──────────────────────────────────────
+function drawWave(buf) {
+  const cv = document.getElementById('waveCanvas');
+  const ctx = cv.getContext('2d');
+  cv.width = cv.offsetWidth * (window.devicePixelRatio||1);
+  cv.height = 68 * (window.devicePixelRatio||1);
+  const W = cv.width, H = cv.height;
   ctx.fillStyle = '#111114';
-  ctx.fillRect(0, 0, W, H);
-  const data = buffer.getChannelData(0);
-  const step = Math.ceil(data.length / W);
-  const mid = H / 2;
-  ctx.strokeStyle = color;
+  ctx.fillRect(0,0,W,H);
+  const d = buf.getChannelData(0);
+  const step = Math.ceil(d.length/W);
+  const mid = H/2;
+  ctx.strokeStyle = '#ff4d00';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let x = 0; x < W; x++) {
-    let min = 1, max = -1;
-    for (let s = 0; s < step; s++) {
-      const v = data[x * step + s] || 0;
-      if (v < min) min = v;
-      if (v > max) max = v;
-    }
-    ctx.moveTo(x, mid + min * mid * 0.88);
-    ctx.lineTo(x, mid + max * mid * 0.88);
+  for(let x=0;x<W;x++){
+    let mn=1,mx=-1;
+    for(let s=0;s<step;s++){ const v=d[x*step+s]||0; if(v<mn)mn=v; if(v>mx)mx=v; }
+    ctx.moveTo(x, mid+mn*mid*0.88);
+    ctx.lineTo(x, mid+mx*mid*0.88);
   }
   ctx.stroke();
 }
 
-// ─── STEM SEPARATION ─────────────────────────────────
-async function runStemAnalysis() {
-  if (!originalBuffer) return;
-  const btn = document.getElementById('analyzeBtn');
-  btn.disabled = true;
-
-  show('progressWrap');
-  const logBox = document.getElementById('logBox');
-  logBox.style.display = 'block';
-  logBox.innerHTML = '';
-
-  function log(msg, cls='') {
-    logBox.innerHTML += `<span class="log-line ${cls}">${msg}</span>\n`;
-    logBox.scrollTop = logBox.scrollHeight;
-  }
-  function prog(pct, status) {
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressStatus').textContent = status;
-  }
-
-  log('► Loading audio into analysis engine...', 'info');
-  prog(5, 'Preparing analysis...');
-  await delay(150);
-
-  const sr = originalBuffer.sampleRate;
-  const len = originalBuffer.length;
-  const numCh = originalBuffer.numberOfChannels;
-
-  log(`  Sample rate: ${sr}Hz  |  Length: ${len} samples  |  Channels: ${numCh}`, '');
-  log('► Running frequency-domain stem separation...', 'info');
-  prog(15, 'Separating stems...');
-  await delay(200);
-
-  // Separate each stem using bandpass filtering in an OfflineAudioContext
-  const stemNames = ['kick','snare','toms','hihat','cymbal','room'];
-
-  for (let si = 0; si < stemNames.length; si++) {
-    const name = stemNames[si];
-    const band = STEM_BANDS[name];
-
-    prog(15 + si * 12, `Isolating ${name}...`);
-    log(`  Isolating ${name.toUpperCase()} (${band.lo}Hz–${band.hi}Hz)...`, 'accent');
-    await delay(100);
-
-    const offCtx = new OfflineAudioContext(numCh, len, sr);
-    const src = offCtx.createBufferSource();
-    src.buffer = originalBuffer;
-
-    // Bandpass chain: HPF → LPF to isolate frequency band
-    const hpf = offCtx.createBiquadFilter();
-    hpf.type = 'highpass';
-    hpf.frequency.value = band.lo;
-    hpf.Q.value = 0.5;
-
-    const lpf = offCtx.createBiquadFilter();
-    lpf.type = 'lowpass';
-    lpf.frequency.value = Math.min(band.hi, sr / 2 - 100);
-    lpf.Q.value = 0.5;
-
-    // Second-order for steeper slope
-    const hpf2 = offCtx.createBiquadFilter();
-    hpf2.type = 'highpass';
-    hpf2.frequency.value = band.lo;
-    hpf2.Q.value = 0.7;
-
-    const lpf2 = offCtx.createBiquadFilter();
-    lpf2.type = 'lowpass';
-    lpf2.frequency.value = Math.min(band.hi, sr / 2 - 100);
-    lpf2.Q.value = 0.7;
-
-    src.connect(hpf);
-    hpf.connect(hpf2);
-    hpf2.connect(lpf);
-    lpf.connect(lpf2);
-    lpf2.connect(offCtx.destination);
-    src.start(0);
-
-    stemBuffers[name] = await offCtx.startRendering();
-    log(`    ✓ ${name} stem isolated`, 'ok');
-    await delay(50);
-  }
-
-  prog(90, 'Analyzing levels...');
-  log('► Analyzing stem levels...', 'info');
-  await delay(150);
-
-  // Auto-set fader defaults based on RMS analysis
-  const rmsLevels = {};
-  stemNames.forEach(name => {
-    rmsLevels[name] = calcRMS(stemBuffers[name].getChannelData(0));
-  });
-
-  // Find max RMS to normalize
-  const maxRMS = Math.max(...Object.values(rmsLevels));
-  if (maxRMS > 0) {
-    stemNames.forEach(name => {
-      const ratio = rmsLevels[name] / maxRMS;
-      // Target: kick & snare near unity, cymbals slightly reduced
-      let targetGain;
-      if (name === 'kick') targetGain = 100;
-      else if (name === 'snare') targetGain = 95;
-      else if (name === 'cymbal') targetGain = Math.min(80, Math.round(ratio * 85));
-      else if (name === 'hihat') targetGain = Math.min(85, Math.round(ratio * 90));
-      else targetGain = Math.round(ratio * 95);
-
-      const fader = document.getElementById('fader-' + name);
-      if (fader) {
-        fader.value = targetGain;
-        updateFader(name, targetGain);
-      }
-      log(`  ${name}: RMS ${toDb(rmsLevels[name]).toFixed(1)} dBFS → fader ${targetGain}%`, '');
-    });
-  }
-
-  prog(100, 'Stems ready!');
-  log('', '');
-  log('✓ Stem separation complete — adjust faders and render!', 'ok');
-
-  await delay(300);
-  show('mixerPanel');
-  btn.disabled = false;
-  btn.textContent = '🔄 Re-Analyze';
-}
-
-// ─── FADER CONTROLS ──────────────────────────────────
-function updateFader(name, val) {
-  val = parseFloat(val);
-  // 0-150 range: 100 = 0dB, 0 = -inf, 150 = +3.5dB
-  let db;
-  if (val <= 0) db = '-∞';
-  else db = (20 * Math.log10(val / 100)).toFixed(1);
-
-  const label = document.getElementById('val-' + name);
-  if (label) label.textContent = (db === '-∞' ? '-∞' : (parseFloat(db) >= 0 ? '+' : '') + db) + ' dB';
-
-  // Update track fill
-  const fader = document.getElementById('fader-' + name);
-  if (fader) {
-    const pct = ((val - 0) / (150 - 0) * 100).toFixed(1) + '%';
-    fader.style.setProperty('--pct', pct);
-  }
-}
-
-function toggleMute(name) {
-  muteState[name] = !muteState[name];
-  const btn = document.getElementById('mute-' + name);
-  const ch = document.getElementById('ch-' + name);
-  if (btn) btn.classList.toggle('active', muteState[name]);
-  if (ch) ch.classList.toggle('muted', muteState[name]);
-}
-
-// ─── RENDER FINAL MIX ────────────────────────────────
-async function renderFinalMix() {
-  if (!Object.keys(stemBuffers).length) return;
-
+// ── PROCESS ───────────────────────────────────────
+async function process() {
+  if(!origBuf) return;
   const btn = document.getElementById('processBtn');
   btn.disabled = true;
-  btn.textContent = 'Rendering...';
 
-  show('progressWrap');
-  const logBox = document.getElementById('logBox');
-  logBox.style.display = 'block';
-  logBox.innerHTML = '';
+  const pw = document.getElementById('progWrap');
+  pw.classList.add('show');
 
-  function log(msg, cls='') {
-    logBox.innerHTML += `<span class="log-line ${cls}">${msg}</span>\n`;
-    logBox.scrollTop = logBox.scrollHeight;
-  }
-  function prog(pct, status) {
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressStatus').textContent = status;
+  function p(pct, txt) {
+    document.getElementById('progFill').style.width = pct+'%';
+    document.getElementById('progStatus').textContent = txt;
   }
 
-  log('► Starting render...', 'info');
-  prog(5, 'Building mix...');
-  await delay(150);
+  const sr   = origBuf.sampleRate;
+  const len  = origBuf.length;
+  const nch  = origBuf.numberOfChannels;
 
-  const sr = originalBuffer.sampleRate;
-  const len = originalBuffer.length;
-  const numCh = originalBuffer.numberOfChannels;
+  // Read settings
+  const cymbalDb  = parseFloat(document.getElementById('s-cymbal').value);
+  const hihatDb   = parseFloat(document.getElementById('s-hihat').value);
+  const kickDb    = parseFloat(document.getElementById('s-kick').value);
+  const snareDb   = parseFloat(document.getElementById('s-snare').value);
+  const boxDb     = parseFloat(document.getElementById('s-box').value);
+  const gainDb    = parseFloat(document.getElementById('s-gain').value);
+  const compRatio = parseFloat(document.getElementById('s-comp').value);
+  const useGate   = document.getElementById('t-gate').checked;
+  const useTrans  = document.getElementById('t-trans').checked;
+  const useHPF    = document.getElementById('t-hpf').checked;
+  const useLim    = document.getElementById('t-lim').checked;
 
-  // Create offline context for final mix
-  const offCtx = new OfflineAudioContext(numCh, len, sr);
-  const masterGain = offCtx.createGain();
+  p(8, 'Building signal chain...');
+  await tick();
 
-  // Compressor on master
-  const comp = offCtx.createDynamicsCompressor();
-  comp.threshold.value = -18;
-  comp.ratio.value = parseFloat(document.getElementById('mcomp').value);
-  comp.knee.value = 8;
-  comp.attack.value = 0.003;
-  comp.release.value = 0.15;
+  const off = new OfflineAudioContext(nch, len, sr);
+  const src = off.createBufferSource();
+  src.buffer = origBuf;
+  let chain = src;
 
-  // Presence EQ
-  const presEQ = offCtx.createBiquadFilter();
-  presEQ.type = 'peaking';
-  presEQ.frequency.value = 3500;
-  presEQ.Q.value = 0.9;
-  presEQ.gain.value = parseFloat(document.getElementById('mpres').value);
+  // 1. HPF
+  if(useHPF) {
+    const hpf = off.createBiquadFilter();
+    hpf.type = 'highpass'; hpf.frequency.value = 30; hpf.Q.value = 0.707;
+    chain.connect(hpf); chain = hpf;
+  }
+  p(18, 'Applying EQ...');
+  await tick();
 
-  // Output gain
-  const outGain = offCtx.createGain();
-  const gainDb = parseFloat(document.getElementById('mgain').value);
-  outGain.gain.value = Math.pow(10, gainDb / 20);
+  // 2. Kick punch — low shelf boost
+  const kickEQ = off.createBiquadFilter();
+  kickEQ.type = 'lowshelf'; kickEQ.frequency.value = 90; kickEQ.gain.value = kickDb;
+  chain.connect(kickEQ); chain = kickEQ;
 
-  // Limiter
-  const limiter = offCtx.createDynamicsCompressor();
-  limiter.threshold.value = -1;
-  limiter.ratio.value = 20;
-  limiter.knee.value = 0;
-  limiter.attack.value = 0.001;
-  limiter.release.value = 0.05;
+  // 3. Boxiness cut — peaking cut around 400Hz
+  const boxEQ = off.createBiquadFilter();
+  boxEQ.type = 'peaking'; boxEQ.frequency.value = 400; boxEQ.Q.value = 1.0; boxEQ.gain.value = boxDb;
+  chain.connect(boxEQ); chain = boxEQ;
 
-  masterGain.connect(comp);
-  comp.connect(presEQ);
-  presEQ.connect(outGain);
+  // 4. Snare body boost ~250Hz
+  const snareBody = off.createBiquadFilter();
+  snareBody.type = 'peaking'; snareBody.frequency.value = 250; snareBody.Q.value = 1.2;
+  snareBody.gain.value = snareDb * 0.4;
+  chain.connect(snareBody); chain = snareBody;
 
-  if (document.getElementById('limiterOn').checked) {
-    outGain.connect(limiter);
-    limiter.connect(offCtx.destination);
-  } else {
-    outGain.connect(offCtx.destination);
+  // 5. Snare crack boost ~4kHz
+  const snareCrack = off.createBiquadFilter();
+  snareCrack.type = 'peaking'; snareCrack.frequency.value = 4000; snareCrack.Q.value = 1.0;
+  snareCrack.gain.value = snareDb * 0.6;
+  chain.connect(snareCrack); chain = snareCrack;
+
+  p(35, 'Reducing cymbals...');
+  await tick();
+
+  // 6. Hi-hat trim — narrow cut around 9kHz
+  const hihatEQ = off.createBiquadFilter();
+  hihatEQ.type = 'peaking'; hihatEQ.frequency.value = 9000; hihatEQ.Q.value = 0.8;
+  hihatEQ.gain.value = hihatDb;
+  chain.connect(hihatEQ); chain = hihatEQ;
+
+  // 7. Cymbal reduction — high shelf starting at 7kHz
+  // Two-stage: shelf + peaking for smoother, more natural cut
+  const cymShelf = off.createBiquadFilter();
+  cymShelf.type = 'highshelf'; cymShelf.frequency.value = 7000;
+  cymShelf.gain.value = cymbalDb * 0.6;
+  chain.connect(cymShelf); chain = cymShelf;
+
+  const cymPeak = off.createBiquadFilter();
+  cymPeak.type = 'peaking'; cymPeak.frequency.value = 10000; cymPeak.Q.value = 0.6;
+  cymPeak.gain.value = cymbalDb * 0.4;
+  chain.connect(cymPeak); chain = cymPeak;
+
+  p(50, 'Compressing...');
+  await tick();
+
+  // 8. Compressor
+  if(compRatio > 1.1) {
+    const comp = off.createDynamicsCompressor();
+    comp.threshold.value = -18; comp.ratio.value = compRatio;
+    comp.knee.value = 8; comp.attack.value = 0.003; comp.release.value = 0.15;
+    chain.connect(comp); chain = comp;
   }
 
-  const stemNames = ['kick','snare','toms','hihat','cymbal','room'];
+  // 9. Output gain
+  const outG = off.createGain();
+  outG.gain.value = Math.pow(10, gainDb/20);
+  chain.connect(outG); chain = outG;
 
-  // Per-stem EQ settings
-  const stemEQ = {
-    kick:   { freq: 80,   gain: parseFloat(document.getElementById('eq-kick-low').value),   type: 'lowshelf' },
-    snare:  { freq: 300,  gain: parseFloat(document.getElementById('eq-snare-mid').value),  type: 'peaking',  Q: 1.2 },
-    cymbal: { freq: 10000,gain: parseFloat(document.getElementById('eq-cymbal-air').value), type: 'highshelf' },
-  };
-
-  prog(20, 'Mixing stems...');
-
-  for (const name of stemNames) {
-    if (muteState[name]) {
-      log(`  MUTED: ${name.toUpperCase()} skipped`, '');
-      continue;
-    }
-
-    const faderVal = parseFloat(document.getElementById('fader-' + name).value);
-    const faderGain = faderVal / 100;
-
-    const src = offCtx.createBufferSource();
-    src.buffer = stemBuffers[name];
-
-    const gainNode = offCtx.createGain();
-    gainNode.gain.value = faderGain;
-
-    let chain = src;
-    chain.connect(gainNode);
-    chain = gainNode;
-
-    // Apply per-stem EQ if defined
-    if (stemEQ[name]) {
-      const eq = offCtx.createBiquadFilter();
-      eq.type = stemEQ[name].type;
-      eq.frequency.value = stemEQ[name].freq;
-      eq.gain.value = stemEQ[name].gain;
-      if (stemEQ[name].Q) eq.Q.value = stemEQ[name].Q;
-      chain.connect(eq);
-      chain = eq;
-    }
-
-    chain.connect(masterGain);
-    src.start(0);
-
-    log(`  ✓ ${name.toUpperCase()}: fader ${faderVal}% (${(20*Math.log10(Math.max(faderGain,0.001))).toFixed(1)} dB)`, 'ok');
+  // 10. Limiter
+  if(useLim) {
+    const lim = off.createDynamicsCompressor();
+    lim.threshold.value = -1; lim.ratio.value = 20;
+    lim.knee.value = 0; lim.attack.value = 0.001; lim.release.value = 0.05;
+    chain.connect(lim); chain = lim;
   }
 
-  prog(50, 'Rendering mix...');
-  await delay(200);
+  chain.connect(off.destination);
+  src.start(0);
 
-  let rendered = await offCtx.startRendering();
+  p(62, 'Rendering...');
+  await tick();
 
-  prog(70, 'Post-processing...');
-  log('► Applying post-processing...', 'info');
-  await delay(150);
+  let rendered = await off.startRendering();
 
-  if (document.getElementById('gateOn').checked) {
-    rendered = applyNoiseGate(rendered, -50);
-    log('  ✓ Noise gate applied', 'ok');
-  }
+  p(80, 'Post-processing...');
+  await tick();
 
-  if (document.getElementById('transientOn').checked) {
-    rendered = applyTransientShaping(rendered);
-    log('  ✓ Transient shaper applied', 'ok');
-  }
+  if(useGate)  rendered = gate(rendered);
+  if(useTrans) rendered = transient(rendered);
 
-  prog(88, 'Encoding WAV...');
-  log('► Encoding final WAV...', 'info');
-  await delay(200);
+  p(94, 'Encoding WAV...');
+  await tick();
 
-  processedBuffer = rendered;
-  processedBlob = bufferToWav(rendered);
+  procBuf  = rendered;
+  procBlob = toWav(rendered);
 
   const peak = calcPeak(rendered.getChannelData(0));
-  const dur = rendered.duration;
+  const rms  = calcRMS(rendered.getChannelData(0));
 
-  document.getElementById('statPeak').textContent = toDb(peak).toFixed(1) + ' dB';
-  document.getElementById('statDuration').textContent = formatDuration(dur);
-  document.getElementById('statStems').textContent = stemNames.filter(n => !muteState[n]).length;
-  document.getElementById('resultSub').textContent = `${stemNames.filter(n=>!muteState[n]).length} stems mixed • ${formatDuration(dur)}`;
+  document.getElementById('sPeak').textContent    = toDb(peak).toFixed(1) + ' dB';
+  document.getElementById('sDur').textContent     = durFmt(rendered.duration);
+  document.getElementById('sGain').textContent    = toDb(rms).toFixed(0) + ' dBFS';
+  document.getElementById('resultSub').textContent = `Cymbal cut ${cymbalDb} dB · ${durFmt(rendered.duration)}`;
 
-  prog(100, 'Done!');
-  log('', '');
-  log('✓ Final mix complete and ready to download!', 'ok');
-
-  show('resultSection');
+  p(100, 'Done!');
+  document.getElementById('result').classList.add('show');
   btn.disabled = false;
-  btn.textContent = '⚡ Re-Render Mix';
+  btn.textContent = '⚡ Re-Process';
 }
 
-// ─── DSP UTILITIES ───────────────────────────────────
-function applyNoiseGate(buffer, threshDb) {
-  const thresh = Math.pow(10, threshDb / 20);
-  const newBuf = audioCtx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-  const holdSamples = Math.floor(buffer.sampleRate * 0.03);
-  const attackSamples = Math.floor(buffer.sampleRate * 0.002);
-  const releaseSamples = Math.floor(buffer.sampleRate * 0.1);
-
-  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-    const input = buffer.getChannelData(ch);
-    const output = newBuf.getChannelData(ch);
-    let gateOpen = false, holdCount = 0, gain = 0;
-    for (let i = 0; i < input.length; i++) {
-      if (Math.abs(input[i]) > thresh) { gateOpen = true; holdCount = holdSamples; }
-      else if (holdCount > 0) holdCount--;
-      else gateOpen = false;
-      const target = gateOpen ? 1 : 0;
-      gain += (target - gain) * (gateOpen ? 1/attackSamples : 1/releaseSamples);
-      output[i] = input[i] * gain;
+// ── DSP ───────────────────────────────────────────
+function gate(buf) {
+  const thresh = Math.pow(10, -50/20);
+  const nb = actx.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+  const hold = Math.floor(buf.sampleRate * 0.03);
+  const atk  = Math.floor(buf.sampleRate * 0.002);
+  const rel  = Math.floor(buf.sampleRate * 0.1);
+  for(let c=0;c<buf.numberOfChannels;c++){
+    const inp=buf.getChannelData(c), out=nb.getChannelData(c);
+    let open=false, hc=0, g=0;
+    for(let i=0;i<inp.length;i++){
+      if(Math.abs(inp[i])>thresh){open=true;hc=hold;}
+      else if(hc>0) hc--;
+      else open=false;
+      g += ((open?1:0)-g) * (open?1/atk:1/rel);
+      out[i] = inp[i]*g;
     }
   }
-  return newBuf;
+  return nb;
 }
 
-function applyTransientShaping(buffer) {
-  const newBuf = audioCtx.createBuffer(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
-  const sr = buffer.sampleRate;
-  for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
-    const input = buffer.getChannelData(ch);
-    const output = newBuf.getChannelData(ch);
-    let envelope = 0;
-    const envRelease = Math.exp(-1 / (sr * 0.01));
-    for (let i = 0; i < input.length; i++) {
-      const level = Math.abs(input[i]);
-      const prevEnv = envelope;
-      envelope = Math.max(level, envelope * envRelease);
-      const isAttack = level > prevEnv * 1.5 && level > 0.05;
-      output[i] = input[i] * (isAttack ? 1.3 : 0.85);
+function transient(buf) {
+  const nb = actx.createBuffer(buf.numberOfChannels, buf.length, buf.sampleRate);
+  const er = Math.exp(-1/(buf.sampleRate*0.01));
+  for(let c=0;c<buf.numberOfChannels;c++){
+    const inp=buf.getChannelData(c), out=nb.getChannelData(c);
+    let env=0;
+    for(let i=0;i<inp.length;i++){
+      const lv=Math.abs(inp[i]), prev=env;
+      env=Math.max(lv,env*er);
+      out[i]=inp[i]*(lv>prev*1.5&&lv>0.05?1.28:0.87);
     }
   }
-  return newBuf;
+  return nb;
 }
 
-function calcRMS(data) {
-  let sum = 0;
-  for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
-  return Math.sqrt(sum / data.length);
-}
-function calcPeak(data) {
-  let peak = 0;
-  for (let i = 0; i < data.length; i++) if (Math.abs(data[i]) > peak) peak = Math.abs(data[i]);
-  return peak;
-}
-function toDb(v) { return 20 * Math.log10(Math.max(v, 0.000001)); }
+function calcRMS(d){ let s=0; for(let i=0;i<d.length;i++) s+=d[i]*d[i]; return Math.sqrt(s/d.length); }
+function calcPeak(d){ let p=0; for(let i=0;i<d.length;i++) if(Math.abs(d[i])>p) p=Math.abs(d[i]); return p; }
+function toDb(v){ return 20*Math.log10(Math.max(v,0.000001)); }
 
-// ─── WAV ENCODER ─────────────────────────────────────
-function bufferToWav(buffer) {
-  const numCh = buffer.numberOfChannels, sr = buffer.sampleRate, len = buffer.length;
-  const byteLen = len * numCh * 2;
-  const ab = new ArrayBuffer(44 + byteLen);
-  const view = new DataView(ab);
-  const ws = (o,s) => { for (let i=0;i<s.length;i++) view.setUint8(o+i,s.charCodeAt(i)); };
-  ws(0,'RIFF'); view.setUint32(4,36+byteLen,true); ws(8,'WAVE'); ws(12,'fmt ');
-  view.setUint32(16,16,true); view.setUint16(20,1,true); view.setUint16(22,numCh,true);
-  view.setUint32(24,sr,true); view.setUint32(28,sr*numCh*2,true);
-  view.setUint16(32,numCh*2,true); view.setUint16(34,16,true);
-  ws(36,'data'); view.setUint32(40,byteLen,true);
-  let offset = 44;
-  for (let i=0;i<len;i++) for (let ch=0;ch<numCh;ch++) {
-    const s = Math.max(-1,Math.min(1,buffer.getChannelData(ch)[i]));
-    view.setInt16(offset,s<0?s*0x8000:s*0x7FFF,true); offset+=2;
+function toWav(buf) {
+  const nc=buf.numberOfChannels, sr=buf.sampleRate, ln=buf.length;
+  const bl=ln*nc*2, ab=new ArrayBuffer(44+bl), v=new DataView(ab);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF'); v.setUint32(4,36+bl,true); ws(8,'WAVE'); ws(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,nc,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*nc*2,true);
+  v.setUint16(32,nc*2,true); v.setUint16(34,16,true);
+  ws(36,'data'); v.setUint32(40,bl,true);
+  let off=44;
+  for(let i=0;i<ln;i++) for(let c=0;c<nc;c++){
+    const s=Math.max(-1,Math.min(1,buf.getChannelData(c)[i]));
+    v.setInt16(off,s<0?s*0x8000:s*0x7FFF,true); off+=2;
   }
   return new Blob([ab],{type:'audio/wav'});
 }
 
-// ─── PLAYBACK ─────────────────────────────────────────
-function playAudio(which) {
-  if (currentSource) { try { currentSource.stop(); } catch(e) {} currentSource = null; }
-  const buf = which === 'original' ? originalBuffer : processedBuffer;
-  if (!buf) return;
-  const src = audioCtx.createBufferSource();
-  src.buffer = buf;
-  src.connect(audioCtx.destination);
-  src.start();
-  currentSource = src;
-  document.getElementById('playOrigBtn').classList.remove('playing');
-  document.getElementById('playProcBtn').classList.remove('playing');
-  document.getElementById(which==='original'?'playOrigBtn':'playProcBtn').classList.add('playing');
-  src.onended = () => {
-    document.getElementById('playOrigBtn').classList.remove('playing');
-    document.getElementById('playProcBtn').classList.remove('playing');
+// ── PLAYBACK ──────────────────────────────────────
+function play(which) {
+  if(curSrc){try{curSrc.stop();}catch(e){} curSrc=null;}
+  const b = which==='orig' ? origBuf : procBuf;
+  if(!b) return;
+  const s = actx.createBufferSource();
+  s.buffer=b; s.connect(actx.destination); s.start();
+  curSrc=s;
+  document.getElementById('btnOrig').classList.remove('playing');
+  document.getElementById('btnProc').classList.remove('playing');
+  document.getElementById(which==='orig'?'btnOrig':'btnProc').classList.add('playing');
+  s.onended=()=>{
+    document.getElementById('btnOrig').classList.remove('playing');
+    document.getElementById('btnProc').classList.remove('playing');
   };
 }
 
-function downloadResult() {
-  if (!processedBlob) return;
-  const url = URL.createObjectURL(processedBlob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = originalFileName + '_drumforge_v2.wav';
-  a.click();
-  URL.revokeObjectURL(url);
+function download() {
+  if(!procBlob) return;
+  const u=URL.createObjectURL(procBlob);
+  const a=document.createElement('a');
+  a.href=u; a.download=fname+'_drumforge.wav'; a.click();
+  URL.revokeObjectURL(u);
 }
 
-// ─── SLIDER HELPERS ──────────────────────────────────
-function updateHSlider(el, labelId, fmt) {
-  document.getElementById(labelId).textContent = fmt(el.value);
-  const pct = ((el.value - el.min) / (el.max - el.min) * 100).toFixed(1) + '%';
+// ── HELPERS ───────────────────────────────────────
+function sl(el, lid, fmt) {
+  document.getElementById(lid).textContent = fmt(el.value);
+  const pct = ((el.value-el.min)/(el.max-el.min)*100).toFixed(1)+'%';
   el.style.setProperty('--pct', pct);
 }
+function tick(){ return new Promise(r=>setTimeout(r,80)); }
+function fmt(b){ return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB'; }
+function durFmt(s){ return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0'); }
 
-function show(id) { document.getElementById(id).classList.add('visible'); }
-function hide(id) { document.getElementById(id).classList.remove('visible'); }
-function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
-function formatBytes(b) {
-  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
-  return (b/1048576).toFixed(1) + ' MB';
-}
-function formatDuration(s) {
-  const m = Math.floor(s/60);
-  return `${m}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-}
-
-// Init fader displays
-document.querySelectorAll('.vfader').forEach(el => updateFader(el.id.replace('fader-',''), el.value));
+// Init slider positions
+document.querySelectorAll('input[type=range].slider').forEach(el=>{
+  const pct=((el.value-el.min)/(el.max-el.min)*100).toFixed(1)+'%';
+  el.style.setProperty('--pct',pct);
+});
 </script>
 </body>
 </html>
